@@ -1,5 +1,5 @@
 import { Dropdown, type DropdownOption } from './Dropdown'
-import { IconBot, IconLayers, IconSpark } from '../lib/icons'
+import { IconBot, IconSpark } from '../lib/icons'
 import { useI18n } from '../lib/i18n'
 import type { ChatMode, ModelInfo } from '../lib/types'
 
@@ -27,9 +27,6 @@ export function Filters({
   models,
   model,
   onModelChange,
-  categories,
-  category,
-  onCategoryChange,
   mode,
   onModeChange,
 }: Props) {
@@ -54,10 +51,6 @@ export function Filters({
     ),
   }))
 
-  const categoryOptions: DropdownOption[] = [
-    { value: 'All', label: t('allCategories') },
-    ...categories.map((c) => ({ value: c, label: c })),
-  ]
 
   return (
     <>
@@ -78,13 +71,6 @@ export function Filters({
           label={t('model')}
         />
       )}
-      {mode !== 'compare' && <Dropdown
-        value={category}
-        options={categoryOptions}
-        onChange={onCategoryChange}
-        icon={<IconLayers width={16} height={16} />}
-        label={t('category')}
-      />}
     </>
   )
 }

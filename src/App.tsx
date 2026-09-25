@@ -10,6 +10,7 @@ import { TopBar } from './components/TopBar'
 import { ChatView } from './components/ChatView'
 import { SearchView } from './components/SearchView'
 import { DocumentsPanel } from './components/DocumentsPanel'
+import { DocumentPicker } from './components/DocumentPicker'
 import { DocumentViewer } from './components/DocumentViewer'
 import { ExtractionViewer } from './components/ExtractionViewer'
 import { CompareView } from './components/CompareView'
@@ -67,6 +68,9 @@ export default function App() {
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [category, setCategory] = useState('All')
+  const [selectedDocumentId, setSelectedDocumentId] = useState('')
+  const [documentPickerOpen, setDocumentPickerOpen] = useState(false)
+  const selectedDocument = documents.find((doc) => doc.id === selectedDocumentId && doc.status === 'ready')
   // On wide screens the docs panel is docked open; on mobile it starts closed
   // (it becomes an overlay drawer there).
   const isWide = typeof window !== 'undefined' && window.innerWidth > 1160
@@ -148,6 +152,7 @@ export default function App() {
   const newChat = useCallback(() => {
     trackEvent(AnalyticsEvent.CHAT_NEW)
     resetChat()
+    setSelectedDocumentId('')
   }, [resetChat])
 
   const openConversation = useCallback(
@@ -155,6 +160,8 @@ export default function App() {
       try {
         const detail = await api.getConversation(id)
         setMode('rag')
+        setSelectedDocumentId(detail.document_ids?.length === 1 ? detail.document_ids[0] : '')
+        setCategory('All')
         setConversationId(id)
         if (detail.model) setModel(detail.model)
         reset(detail.messages)
@@ -203,6 +210,7 @@ export default function App() {
 
   const handleSend = useCallback(
     (text: string) => {
+      if (!selectedDocument) return
       trackEvent(AnalyticsEvent.CHAT_MESSAGE_SEND, {
         model,
         category: category === 'All' ? 'all' : category,
@@ -210,13 +218,28 @@ export default function App() {
       })
       send(text, {
         model,
-        category: category === 'All' ? null : category,
+        documentIds: [selectedDocument.id],
+        category: null,
         lang,
         mode,
       })
     },
-    [send, model, category, lang, mode],
+    [send, model, category, lang, mode, selectedDocument],
   )
+
+  const handleDocumentChange = (id: string) => {
+    if (id === selectedDocumentId) return
+    resetChat()
+    setSelectedDocumentId(id)
+    setCategory('All')
+  }
+
+  useEffect(() => {
+    if (selectedDocumentId && !selectedDocument) {
+      resetChat()
+      setSelectedDocumentId('')
+    }
+  }, [selectedDocumentId, selectedDocument, resetChat])
 
   const handleModeChange = useCallback(
     (next: ChatMode) => {
@@ -315,23 +338,47 @@ export default function App() {
           readyDocs={readyDocs}
           onMenu={() => setSidebarOpen(true)}
         />
+        {mode !== 'compare' && <div className="document-scope">
+          <label htmlFor="active-document">{lang === 'en' ? 'Selected document' : 'Выбранный документ'}</label>
+          <select id="active-document" value={selectedDocumentId} onChange={(event) => handleDocumentChange(event.target.value)}>
+            <option value="">{lang === 'en' ? 'Choose a document to continue' : 'Выберите документ для продолжения'}</option>
+            {documents.map((doc) => <option key={doc.id} value={doc.id} disabled={doc.status !== 'ready'}>
+              {doc.filename}{doc.status !== 'ready' ? ` (${doc.status})` : ''}
+            </option>)}
+          </select>
+          <p>{selectedDocument
+            ? (lang === 'en' ? 'Answers and searches use only this file. Changing files starts a new conversation.' : 'Ответы и поиск используют только этот файл. Смена файла начинает новый диалог.')
+            : (lang === 'en' ? 'Select a ready document before asking a question or searching.' : 'Выберите обработанный документ перед вопросом или поиском.')}</p>
+        </div>}
         {mode === 'compare' ? (
           <CompareView documents={documents} model={model} onUploaded={refreshDocs}
             onFinished={onFinishedWithTitle} onInspect={(id) => setInspection({ id })}
             onOpenSource={handleOpenSource} />
+        ) : !selectedDocument ? (
+          <div className="document-required">
+            <button type="button" className="document-required-choose" onClick={() => setDocumentPickerOpen(true)} aria-haspopup="dialog">
+              <span className="document-required-title">{lang === 'en' ? 'Choose your document first' : 'Сначала выберите документ'}</span>
+              <span className="document-required-hint">{lang === 'en' ? 'Click here to choose an uploaded document.' : 'Нажмите здесь, чтобы выбрать загруженный документ.'}</span>
+              <span className="document-required-action">{lang === 'en' ? 'Choose a document →' : 'Выбрать документ →'}</span>
+            </button>
+            <button className="btn btn-ghost" onClick={() => setDocsOpen(true)}>{lang === 'en' ? 'Upload / manage documents' : 'Загрузить / выбрать документы'}</button>
+          </div>
         ) : mode === 'search' ? (
           <SearchView
-            documents={documents}
-            category={category}
+            key={selectedDocument.id}
+            documentId={selectedDocument.id}
+            documents={[selectedDocument]}
+            category="All"
             onOpenSource={handleOpenSource}
           />
         ) : (
           <ChatView
+            key={selectedDocument.id}
             messages={messages}
             isStreaming={isStreaming}
             onSend={handleSend}
             onStop={stop}
-            documents={documents}
+            documents={[selectedDocument]}
             onOpenSource={handleOpenSource}
             onFeedback={handleMessageFeedback}
             onFollowup={handleFollowup}
@@ -365,6 +412,10 @@ export default function App() {
       )}
 
       <DocumentViewer source={viewerSource} onClose={() => setViewerSource(null)} />
+      {documentPickerOpen && <DocumentPicker documents={documents}
+        onClose={() => setDocumentPickerOpen(false)}
+        onSelect={(id) => { handleDocumentChange(id); setDocumentPickerOpen(false) }}
+        onUpload={() => { setDocumentPickerOpen(false); setDocsOpen(true) }} />}
       {inspection && <ExtractionViewer documentId={inspection.id} initialPage={inspection.page}
         onClose={() => setInspection(null)} onOpenSource={setViewerSource} />}
 

@@ -8,6 +8,7 @@ import { IconExternal, IconLayers, IconMic, IconSearch } from '../lib/icons'
 import type { DocumentItem, Source } from '../lib/types'
 
 interface Props {
+  documentId: string
   documents: DocumentItem[]
   category: string // 'All' or a concrete category
   onOpenSource: (source: Source) => void
@@ -15,7 +16,7 @@ interface Props {
 
 /** Векторный поиск: прямой семантический поиск по фрагментам документов
  *  (fastembed + Chroma), без LLM. */
-export function SearchView({ documents, category, onOpenSource }: Props) {
+export function SearchView({ documents, documentId, category, onOpenSource }: Props) {
   const { t, lang } = useI18n()
   const [query, setQuery] = useState('')
   const speech = useSpeechRecognition(lang)
@@ -24,17 +25,23 @@ export function SearchView({ documents, category, onOpenSource }: Props) {
   const [tookMs, setTookMs] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  useEffect(() => () => abortRef.current?.abort(), [])
 
   const runSearch = useCallback(
     async (raw: string) => {
       const q = raw.trim()
-      if (!q || loading) return
+      if (!q || loading || !documentId) return
+      const controller = new AbortController()
+      abortRef.current = controller
       setLoading(true)
       setError(null)
       try {
         const res = await api.search(q, {
           category: category === 'All' ? undefined : category,
           top_k: 10,
+          documentIds: [documentId],
+          signal: controller.signal,
         })
         setResults(res.results)
         setTookMs(res.took_ms)
@@ -44,6 +51,7 @@ export function SearchView({ documents, category, onOpenSource }: Props) {
           category: category === 'All' ? 'all' : category,
         })
       } catch (e) {
+        if (controller.signal.aborted) return
         setError(e instanceof Error ? e.message : 'search_failed')
         trackEvent(AnalyticsEvent.VECTOR_SEARCH_ERROR, {
           message: (e instanceof Error ? e.message : 'search_failed').slice(0, 120),
@@ -52,7 +60,7 @@ export function SearchView({ documents, category, onOpenSource }: Props) {
         setLoading(false)
       }
     },
-    [category, loading],
+    [category, loading, documentId],
   )
 
   const empty = results !== null && results.length === 0
@@ -79,6 +87,7 @@ export function SearchView({ documents, category, onOpenSource }: Props) {
   return (
     <div className="chat">
       <div className="chat-scroll">
+        {error && <p className="docs-error" role="alert">{error}</p>}
         {results === null ? (
           <div className="welcome">
             <div className="welcome-logo search">
@@ -147,7 +156,7 @@ export function SearchView({ documents, category, onOpenSource }: Props) {
                     </button>
                     <span className="source-meta">
                       {r.page != null && (
-                        <span className="source-page">{t('page', { n: r.page })}</span>
+                        <span className="source-page">{r.label || t('page', { n: r.page })}</span>
                       )}
                       {r.score != null && (
                         <span className="source-score" title={String(r.score)}>

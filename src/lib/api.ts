@@ -48,11 +48,12 @@ export const api = {
     fetch(`${BASE}/documents/${id}/extraction`, { signal }).then(json<DocumentExtraction>),
 
   // ---- Vector search ----
-  search: (q: string, opts?: { category?: string; top_k?: number }) => {
+  search: (q: string, opts?: { category?: string; top_k?: number; documentIds?: string[]; signal?: AbortSignal }) => {
     const p = new URLSearchParams({ q })
     if (opts?.category && opts.category !== 'All') p.set('category', opts.category)
     if (opts?.top_k) p.set('top_k', String(opts.top_k))
-    return fetch(`${BASE}/search?${p}`).then(json<SearchResponse>)
+    if (opts?.documentIds) p.set('document_ids', opts.documentIds.join(','))
+    return fetch(`${BASE}/search?${p}`, { signal: opts?.signal }).then(json<SearchResponse>)
   },
 
   // ---- Conversations ----
