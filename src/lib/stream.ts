@@ -1,0 +1,151 @@
+import type { AgentStep, ChatMode, Source } from './types'
+
+export interface ChatStreamRequest {
+  message: string
+  conversation_id?: string | null
+  model: string
+  category?: string | null
+  document_ids?: string[] | null
+  lang?: string
+  mode?: ChatMode
+}
+
+export interface ChatStreamHandlers {
+  onAgentStep?: (step: AgentStep) => void
+  onSources?: (conversationId: string, sources: Source[]) => void
+  onToken?: (delta: string) => void
+  onDone?: (messageId: string, conversationId: string) => void
+  onError?: (message: string) => void
+  /** Сгенерированный заголовок диалога (после done) */
+  onTitle?: (conversationId: string, title: string) => void
+  /** Follow-up подсказки для текущего ответа (после done) */
+  onFollowups?: (questions: string[]) => void
+}
+
+/**
+ * POST /api/chat and parse the Server-Sent-Events stream.
+ * Returns an AbortController so the caller can cancel generation.
+ */
+export function streamChat(
+  req: ChatStreamRequest,
+  handlers: ChatStreamHandlers,
+): AbortController {
+  const controller = new AbortController()
+
+  ;(async () => {
+    // done/error получены? Если стрим закрылся без них (упавший бэкенд,
+    // рестарт Space, рваное соединение) — сообщаем об ошибке, иначе
+    // индикатор «думает…» останется навсегда.
+    let finished = false
+    const finishHandlers = {
+      ...handlers,
+      onDone: (id: string, cid: string) => {
+        finished = true
+        ;(window as unknown as Record<string, unknown>).__sseDone = Date.now()
+        handlers.onDone?.(id, cid)
+      },
+      onError: (msg: string) => {
+        finished = true
+        handlers.onError?.(msg)
+      },
+    }
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+        signal: controller.signal,
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(typeof body?.detail === 'string' ? body.detail : `HTTP ${res.status}`)
+      }
+      if (!res.body) throw new Error('Empty response')
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { value, done } = await reader.read()
+        // ВАЖНО: последний чанк приходит ВМЕСТЕ с done:true — обрабатываем
+        // value и только потом выходим, иначе теряем финальные токены и done.
+        if (value) {
+          buffer += decoder.decode(value, { stream: true })
+          ;(window as unknown as Record<string, unknown>).__sseChunks =
+            (((window as unknown as Record<string, unknown>).__sseChunks as number) ?? 0) + 1
+          ;(window as unknown as Record<string, unknown>).__sseBytes =
+            (((window as unknown as Record<string, unknown>).__sseBytes as number) ?? 0) +
+            value.length
+
+          // SSE frames are separated by a blank line.
+          let sep: number
+          while ((sep = buffer.indexOf('\n\n')) !== -1) {
+            const frame = buffer.slice(0, sep)
+            buffer = buffer.slice(sep + 2)
+            try {
+              dispatch(frame, finishHandlers)
+            } catch (e) {
+              ;(window as unknown as Record<string, unknown>).__dbgDispatchError = String(e)
+            }
+          }
+        }
+        if (done) {
+          ;(window as unknown as Record<string, unknown>).__dbgStreamClosed = true
+          ;(window as unknown as Record<string, unknown>).__dbgLeftover = buffer
+          break
+        }
+      }
+      if (!finished && !controller.signal.aborted) {
+        finishHandlers.onError?.(
+          localStorage.getItem('lang') === 'en'
+            ? 'Connection lost before completion — please try again'
+            : 'Соединение прервалось до завершения ответа — попробуйте ещё раз',
+        )
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return // user cancelled — not an error
+      const fallback =
+        localStorage.getItem('lang') === 'en' ? 'Connection error' : 'Ошибка соединения'
+      finishHandlers.onError?.(err instanceof Error ? err.message : fallback)
+    }
+  })()
+
+  return controller
+}
+
+function dispatch(frame: string, handlers: ChatStreamHandlers) {
+  let event = 'message'
+  let data = ''
+  for (const line of frame.split('\n')) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    else if (line.startsWith('data:')) data += line.slice(5).trim()
+  }
+  if (!data) return
+  const payload = JSON.parse(data)
+  switch (event) {
+    case 'agent_step':
+      handlers.onAgentStep?.(payload as AgentStep)
+      break
+    case 'sources':
+      handlers.onSources?.(payload.conversation_id, payload.sources)
+      break
+    case 'token':
+      handlers.onToken?.(payload.delta)
+      break
+    case 'done':
+      handlers.onDone?.(payload.message_id, payload.conversation_id)
+      break
+    case 'error':
+      handlers.onError?.(payload.message)
+      break
+    case 'title':
+      handlers.onTitle?.(payload.conversation_id, payload.title)
+      break
+    case 'followups':
+      handlers.onFollowups?.(payload.followups)
+      break
+    default:
+      break
+  }
+}
