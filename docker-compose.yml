@@ -1,0 +1,29 @@
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - ./backend/.env
+    environment:
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    volumes:
+      - backend_data:/app/data          # uploads + chroma + sqlite
+      - fastembed_cache:/root/.cache    # локальная модель эмбеддингов (кэш)
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # доступ к локальному Ollama
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_YANDEX_METRIKA_ID: ${VITE_YANDEX_METRIKA_ID:-}
+        VITE_GA4_MEASUREMENT_ID: ${VITE_GA4_MEASUREMENT_ID:-}
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  backend_data:
+  fastembed_cache:

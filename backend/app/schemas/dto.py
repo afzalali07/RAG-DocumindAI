@@ -1,0 +1,105 @@
+"""Pydantic DTOs for the API layer."""
+from __future__ import annotations
+
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+
+# ---------- Documents ----------
+class DocumentOut(BaseModel):
+    id: str
+    filename: str
+    content_type: str
+    category: str
+    size_bytes: int
+    page_count: int
+    chunk_count: int
+    status: str
+    error: str | None = None
+    lang: str | None = None
+    pair_key: str | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ---------- Sources / citations ----------
+class Source(BaseModel):
+    document_id: str
+    filename: str
+    page: int | None = None
+    snippet: str
+    score: float | None = None
+    chunk_index: int | None = None
+    label: str | None = None
+    location_kind: str | None = None
+
+
+# ---------- Vector search ----------
+class SearchResponse(BaseModel):
+    query: str
+    took_ms: int
+    embedding_model: str
+    results: list[Source] = Field(default_factory=list)
+
+
+# ---------- Chat ----------
+class ChatRequest(BaseModel):
+    message: str
+    conversation_id: str | None = None
+    model: str | None = None  # Legacy input ignored; backend OLLAMA_MODEL is authoritative.
+    category: str | None = None                 # filter retrieval by category
+    document_ids: list[str] | None = None        # or restrict to specific docs
+    top_k: int | None = None
+    lang: str = "ru"                             # UI language: "ru" | "en"
+    mode: str = "rag"                            # "rag" | "agent" | "compare"
+
+
+# ---------- Conversations ----------
+class AgentStepOut(BaseModel):
+    index: int
+    type: str = "tool"
+    name: str
+    args: dict = Field(default_factory=dict)
+    ok: bool = True
+    detail: str = ""
+
+
+class MessageOut(BaseModel):
+    id: str
+    role: str
+    content: str
+    sources: list[Source] | None = None
+    agent_steps: list[AgentStepOut] | None = None
+    feedback: str | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConversationOut(BaseModel):
+    id: str
+    title: str
+    model: str | None = None
+    document_ids: list[str] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConversationDetail(ConversationOut):
+    messages: list[MessageOut] = Field(default_factory=list)
+
+
+# ---------- Models ----------
+class ModelInfo(BaseModel):
+    id: str            # e.g. "openai:gpt-4o-mini"
+    provider: str      # openai | anthropic | ollama | mock
+    label: str
+    available: bool    # key present / reachable
+    description: str = ""
