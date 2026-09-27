@@ -552,3 +552,17 @@ Vector Search and two-document comparison remain retrieval-based.
 
 Restart the backend after updating. Existing uploaded XLSX files work immediately
 for structured analysis; reindex them to refresh the header-labelled search text.
+
+## Page navigation
+
+Use the left navigation (the menu button on mobile) to switch between:
+
+- `/#/chat`: RAG Chat, AI Agent, Vector Search and document comparison.
+- `/#/documents`: upload, preview, download, inspect and delete documents. Use
+  **Chat about this document** to select a ready file and open Chat.
+- `/#/history`: search saved conversations, reopen them or delete them.
+
+Browser Back/Forward and refresh retain the page route. Hash routing works with
+existing static hosting without extra server rewrite rules. Switching pages
+keeps the current chat, draft and upload component mounted. A full browser reload
+starts a fresh chat view; saved conversations can be reopened from History.

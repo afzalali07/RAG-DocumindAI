@@ -8,6 +8,7 @@ import { useI18n } from '../lib/i18n'
 import type { ChatMessage, ChatMode, DocumentItem, Source } from '../lib/types'
 
 interface Props {
+  readOnly?: boolean
   messages: ChatMessage[]
   isStreaming: boolean
   onSend: (text: string) => void
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function ChatView({
+  readOnly = false,
   messages,
   isStreaming,
   onSend,
@@ -100,7 +102,7 @@ export function ChatView({
                 isLast={i === messages.length - 1}
                 onOpenSource={onOpenSource}
                 onFeedback={onFeedback}
-                onFollowup={onFollowup}
+                onFollowup={readOnly ? undefined : onFollowup}
               />
             ))}
             <div ref={endRef} />
@@ -108,7 +110,10 @@ export function ChatView({
         )}
       </div>
 
-      <Composer onSend={onSend} onStop={onStop} isStreaming={isStreaming} />
+      {readOnly ? <p className="history-readonly">{lang === 'en'
+        ? 'Saved conversation. Choose a document or start a new chat to ask another question.'
+        : 'Сохранённый чат. Выберите документ или начните новый чат для нового вопроса.'}</p>
+        : <Composer onSend={onSend} onStop={onStop} isStreaming={isStreaming} />}
     </div>
   )
 }

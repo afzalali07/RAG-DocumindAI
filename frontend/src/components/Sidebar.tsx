@@ -1,148 +1,43 @@
-import { IconChat, IconGlobe, IconMoon, IconPlus, IconSpark, IconSun, IconTrash } from '../lib/icons'
-import { AnalyticsEvent, trackEvent } from '../lib/analytics'
+import { IconChat, IconDoc, IconPlus, IconSpark, IconSun, IconMoon } from '../lib/icons'
 import { useSwipeDismiss } from '../hooks/useSwipeDismiss'
-import { Filters } from './Filters'
-import { useI18n, type TKey } from '../lib/i18n'
-import type { ChatMode, Conversation } from '../lib/types'
+import { useI18n } from '../lib/i18n'
+import type { Page } from '../hooks/usePageRoute'
 
 interface Props {
-  open: boolean // mobile drawer state
+  open: boolean
   onClose: () => void
-  conversations: Conversation[]
-  activeId: string | null
   onNew: () => void
-  onOpen: (id: string) => void
-  onDelete: (id: string) => void
   theme: 'light' | 'dark'
   onToggleTheme: () => void
-  // Model/category selectors — shown here only on mobile (in the drawer).
-  categories: string[]
-  category: string
-  onCategoryChange: (c: string) => void
-  mode: ChatMode
-  onModeChange: (mode: ChatMode) => void
+  page: Page
 }
-
-const GROUP_KEYS: Record<string, TKey> = {
-  today: 'groupToday',
-  week: 'groupWeek',
-  earlier: 'groupEarlier',
-}
-
-function groupByDate(items: Conversation[]) {
-  const groups: Record<string, Conversation[]> = {}
-  const now = Date.now()
-  for (const c of items) {
-    const days = (now - new Date(c.updated_at).getTime()) / 86400000
-    const key = days < 1 ? 'today' : days < 7 ? 'week' : 'earlier'
-    ;(groups[key] ??= []).push(c)
-  }
-  return groups
-}
-
-export function Sidebar({
-  open,
-  onClose,
-  conversations,
-  activeId,
-  onNew,
-  onOpen,
-  onDelete,
-  theme,
-  onToggleTheme,
-  categories,
-  category,
-  onCategoryChange,
-  mode,
-  onModeChange,
-}: Props) {
-  const { t, toggleLang } = useI18n()
-  const groups = groupByDate(conversations)
-  const order = ['today', 'week', 'earlier']
+export function Sidebar({ open, onClose, onNew, theme, onToggleTheme, page }: Props) {
+  const { t, lang } = useI18n()
   const swipe = useSwipeDismiss(onClose, 'left', open)
-
-  return (
-    <aside
-      className={`sidebar ${open ? 'open' : ''} ${swipe.swiping ? 'swiping' : ''}`}
-      style={swipe.style}
-      {...swipe.handlers}
-    >
-      <div className="brand">
-        <div className="brand-logo"><IconSpark width={20} height={20} /></div>
-        <div>
-          <div className="brand-title">RAG Chat</div>
-          <div className="brand-sub">{t('brandSub')}</div>
-        </div>
-        {/* Крестик шторки: как в панели документов — всегда виден, пока
-            сайдбар открыт (на десктопе сайдбар доками и скрыт CSS-ом). */}
-        <button className="sidebar-close" onClick={onClose} title={t('hidePanel')}>✕</button>
-      </div>
-
-      <button className="btn-new" onClick={onNew}>
-        <IconPlus /> {t('newChat')}
+  const links = [
+    { page: 'chat', label: lang === 'en' ? 'Chat' : 'Чат', icon: <IconChat /> },
+    { page: 'documents', label: lang === 'en' ? 'Documents & uploads' : 'Документы и загрузка', icon: <IconDoc /> },
+    { page: 'history', label: lang === 'en' ? 'Chat history' : 'История чатов', icon: <IconChat /> },
+  ]
+  return <aside className={`sidebar ${open ? 'open' : ''} ${swipe.swiping ? 'swiping' : ''}`} style={swipe.style} {...swipe.handlers}>
+    <div className="brand">
+      <div className="brand-logo"><IconSpark width={20} height={20} /></div>
+      <div><div className="brand-title">RAG Chat</div><div className="brand-sub">{t('brandSub')}</div></div>
+      <button className="sidebar-close" onClick={onClose} aria-label={t('hidePanel')}>×</button>
+    </div>
+    <button className="btn-new" onClick={onNew}><IconPlus />{t('newChat')}</button>
+    <nav className="page-nav" aria-label={lang === 'en' ? 'Main navigation' : 'Навигация'}>
+      {links.map(link => <a key={link.page} href={`#/${link.page}`} onClick={onClose}
+        className={page === link.page ? 'active' : ''} aria-current={page === link.page ? 'page' : undefined}>
+        {link.icon}{link.label}
+      </a>)}
+    </nav>
+    <div className="sidebar-footer">
+      <button className="theme-toggle theme-icon" onClick={onToggleTheme}
+        title={theme === 'dark' ? t('themeLight') : t('themeDark')}
+        aria-label={theme === 'dark' ? t('themeLight') : t('themeDark')}>
+        {theme === 'dark' ? <IconSun width={18} height={18} aria-hidden="true" /> : <IconMoon width={18} height={18} aria-hidden="true" />}
       </button>
-
-      <div className="sidebar-filters">
-        <span className="sidebar-filters-label">{t('searchSettings')}</span>
-        <Filters
-
-
-
-          categories={categories}
-          category={category}
-          onCategoryChange={onCategoryChange}
-          mode={mode}
-          onModeChange={onModeChange}
-        />
-      </div>
-
-      <nav className="conv-list">
-        {conversations.length === 0 && <p className="conv-empty">{t('historyEmpty')}</p>}
-        {order.map((key) =>
-          groups[key]?.length ? (
-            <div key={key} className="conv-group">
-              <div className="conv-group-label">{t(GROUP_KEYS[key])}</div>
-              {groups[key].map((c) => (
-                <div
-                  key={c.id}
-                  className={`conv-item ${c.id === activeId ? 'active' : ''}`}
-                  onClick={() => onOpen(c.id)}
-                >
-                  <IconChat width={15} height={15} className="conv-icon" />
-                  <span className="conv-title">{c.title}</span>
-                  <button
-                    className="conv-del"
-                    title={t('deleteConversation')}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onDelete(c.id)
-                    }}
-                  >
-                    <IconTrash width={15} height={15} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null,
-        )}
-      </nav>
-
-      <div className="sidebar-footer">
-        <button className="theme-toggle" onClick={onToggleTheme}>
-          {theme === 'dark' ? <IconSun /> : <IconMoon />}
-          {theme === 'dark' ? t('themeLight') : t('themeDark')}
-        </button>
-        <button
-          className="theme-toggle"
-          onClick={() => {
-            trackEvent(AnalyticsEvent.LANGUAGE_TOGGLE)
-            toggleLang()
-          }}
-        >
-          <IconGlobe />
-          {t('langSwitch')}
-        </button>
-      </div>
-    </aside>
-  )
+    </div>
+  </aside>
 }

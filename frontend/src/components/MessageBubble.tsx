@@ -13,7 +13,7 @@ interface Props {
   message: ChatMessage
   onOpenSource: (source: Source) => void
   onFeedback: (messageId: string, value: 'up' | 'down' | null) => void
-  onFollowup: (question: string) => void
+  onFollowup?: (question: string) => void
   isLast: boolean
 }
 
@@ -153,7 +153,7 @@ export function MessageBubble({ message, onOpenSource, onFeedback, onFollowup, i
             </button>
           </div>
         )}
-        {!isUser && isLast && !message.streaming && (message.followups?.length ?? 0) > 0 && (
+        {onFollowup && !isUser && isLast && !message.streaming && (message.followups?.length ?? 0) > 0 && (
           <div className="msg-followups">
             {message.followups!.map((q) => (
               <button key={q} className="followup-chip" onClick={() => onFollowup(q)}>

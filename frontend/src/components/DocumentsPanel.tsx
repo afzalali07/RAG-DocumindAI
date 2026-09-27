@@ -7,6 +7,8 @@ import { useI18n } from '../lib/i18n'
 import type { DocumentItem, Source } from '../lib/types'
 
 interface Props {
+  asPage?: boolean
+  onSelect?: (id: string) => void
   uploadInputRef: RefObject<HTMLInputElement | null>
   documents: DocumentItem[]
   categories: string[]
@@ -29,6 +31,8 @@ function fileExt(name: string) {
 }
 
 export function DocumentsPanel({
+  asPage = false,
+  onSelect,
   uploadInputRef,
   documents,
   categories,
@@ -126,7 +130,7 @@ export function DocumentsPanel({
       return b.created_at.localeCompare(a.created_at) // непарные: новые сверху
     })
   const visibleReady = visible.filter((d) => d.status === 'ready').length
-  const swipe = useSwipeDismiss(onClose, 'right')
+  const swipe = useSwipeDismiss(onClose, 'right', !asPage)
 
   return (
     <aside
@@ -243,6 +247,9 @@ export function DocumentsPanel({
               </div>
               {d.status === 'ready' && <button className="doc-inspect" onClick={() => onInspect(d.id)}>
                 {lang === 'en' ? 'Tables & pages' : 'Таблицы и страницы'}
+              </button>}
+              {d.status === 'ready' && onSelect && <button className="btn btn-ghost doc-chat" onClick={() => onSelect(d.id)}>
+                {lang === 'en' ? 'Chat about this document' : 'Обсудить документ'}
               </button>}
               {d.status === 'processing' && (
                 <div className="doc-status processing">

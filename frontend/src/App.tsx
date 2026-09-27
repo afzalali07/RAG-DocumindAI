@@ -6,6 +6,10 @@ import './styles/documents.css'
 import './styles/comparison.css'
 import './styles/search.css'
 import './styles/provider-error.css'
+import { usePageRoute } from './hooks/usePageRoute'
+import { HistoryPage } from './components/HistoryPage'
+import { IconMenu } from './lib/icons'
+import './styles/pages.css'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
 import { ChatView } from './components/ChatView'
@@ -29,6 +33,7 @@ const MODES: readonly ChatMode[] = ['rag', 'agent', 'search', 'compare']
 
 export default function App() {
   const { lang } = useI18n()
+  const { page, navigate } = usePageRoute()
 
   // ---- Theme ----
   // Initial value may come from ?theme= in the URL (see lib/prefs).
@@ -62,10 +67,6 @@ export default function App() {
   const [documentPickerOpen, setDocumentPickerOpen] = useState(false)
   const documentUploadRef = useRef<HTMLInputElement>(null)
   const selectedDocument = documents.find((doc) => doc.id === selectedDocumentId && doc.status === 'ready')
-  // On wide screens the docs panel is docked open; on mobile it starts closed
-  // (it becomes an overlay drawer there).
-  const isWide = typeof window !== 'undefined' && window.innerWidth > 1160
-  const [docsOpen, setDocsOpen] = useState(isWide)
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile drawer only
   const [viewerSource, setViewerSource] = useState<Source | null>(null)
   const [inspection, setInspection] = useState<{ id: string; page?: number } | null>(null)
@@ -143,28 +144,32 @@ export default function App() {
   const newChat = useCallback(() => {
     trackEvent(AnalyticsEvent.CHAT_NEW)
     resetChat()
+    setMode('rag')
     setSelectedDocumentId('')
-  }, [resetChat])
+    navigate('chat')
+  }, [resetChat, navigate])
 
   const openConversation = useCallback(
     async (id: string) => {
       try {
         const detail = await api.getConversation(id)
         setMode('rag')
-        setSelectedDocumentId(detail.document_ids?.length === 1 ? detail.document_ids[0] : '')
+        setSelectedDocumentId(detail.document_ids?.length === 1 && documents.some(doc => doc.id === detail.document_ids![0] && doc.status === 'ready') ? detail.document_ids[0] : '')
         setCategory('All')
         setConversationId(id)
 
         reset(detail.messages)
         setSidebarOpen(false)
+        navigate('chat')
       } catch (e) {
         trackEvent(AnalyticsEvent.CONVERSATION_OPEN_ERROR, {
           conversation_id: id,
           message: (e instanceof Error ? e.message : 'open_failed').slice(0, 120),
         })
+        throw e
       }
     },
-    [reset],
+    [reset, navigate, documents],
   )
 
   const deleteConversation = useCallback(
@@ -178,6 +183,7 @@ export default function App() {
           conversation_id: id,
           message: (e instanceof Error ? e.message : 'delete_failed').slice(0, 120),
         })
+        throw e
       }
     },
     [conversationId, resetChat, refreshConversations],
@@ -188,7 +194,7 @@ export default function App() {
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1160px)')
     const update = () => {
-      const overlay = (sidebarOpen || docsOpen) && mq.matches
+      const overlay = sidebarOpen && mq.matches
       document.body.classList.toggle('no-scroll', overlay)
     }
     update()
@@ -197,7 +203,7 @@ export default function App() {
       mq.removeEventListener('change', update)
       document.body.classList.remove('no-scroll')
     }
-  }, [sidebarOpen, docsOpen])
+  }, [sidebarOpen])
 
   const handleSend = useCallback(
     (text: string) => {
@@ -231,7 +237,7 @@ export default function App() {
     flushSync(() => {
       setDocumentPickerOpen(false)
       setSidebarOpen(false)
-      setDocsOpen(true)
+      navigate('documents')
     })
     documentUploadRef.current?.click()
   }
@@ -291,37 +297,16 @@ export default function App() {
     [handleSend],
   )
 
-  const handleToggleDocs = useCallback(() => {
-    setDocsOpen((v) => {
-      const next = !v
-      trackEvent(AnalyticsEvent.DOCS_PANEL_TOGGLE, { open: next })
-      return next
-    })
-  }, [])
-
   return (
     <div className="app">
-      <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        conversations={conversations}
-        activeId={conversationId}
-        onNew={newChat}
-        onOpen={openConversation}
-        onDelete={deleteConversation}
-        theme={theme}
-        onToggleTheme={handleToggleTheme}
-
-
-
-        categories={categories}
-        category={category}
-        onCategoryChange={handleCategoryChange}
-        mode={mode}
-        onModeChange={handleModeChange}
-      />
-
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}
+        onNew={newChat} theme={theme} onToggleTheme={handleToggleTheme} page={page} />
       <main className="main">
+        {page !== 'chat' && <header className="page-header">
+          <button className="menu-btn" onClick={() => setSidebarOpen(true)} aria-label={lang === 'en' ? 'Open navigation' : 'Открыть меню'}><IconMenu /></button>
+          <h1>{page === 'documents' ? (lang === 'en' ? 'Documents & uploads' : 'Документы и загрузка') : (lang === 'en' ? 'Chat history' : 'История чатов')}</h1>
+        </header>}
+        <div className="route-chat" hidden={page !== 'chat'}>
         <TopBar
 
 
@@ -331,8 +316,8 @@ export default function App() {
           onCategoryChange={handleCategoryChange}
           mode={mode}
           onModeChange={handleModeChange}
-          docsOpen={docsOpen}
-          onToggleDocs={handleToggleDocs}
+          docsOpen={false}
+          onToggleDocs={() => navigate('documents')}
           readyDocs={readyDocs}
           onMenu={() => setSidebarOpen(true)}
         />
@@ -352,7 +337,7 @@ export default function App() {
           <CompareView documents={documents} onUploaded={refreshDocs}
             onFinished={onFinishedWithTitle} onInspect={(id) => setInspection({ id })}
             onOpenSource={handleOpenSource} />
-        ) : !selectedDocument ? (
+        ) : !selectedDocument && messages.length === 0 ? (
           <div className="document-required">
             <button type="button" className="document-required-choose" onClick={() => setDocumentPickerOpen(true)} aria-haspopup="dialog">
               <span className="document-required-title">{lang === 'en' ? 'Choose your document first' : 'Сначала выберите документ'}</span>
@@ -361,7 +346,7 @@ export default function App() {
             </button>
             <button className="btn btn-ghost" onClick={handleUploadDocuments}>{lang === 'en' ? 'Upload / manage documents' : 'Загрузить / выбрать документы'}</button>
           </div>
-        ) : mode === 'search' ? (
+        ) : mode === 'search' && selectedDocument ? (
           <SearchView
             key={selectedDocument.id}
             documentId={selectedDocument.id}
@@ -371,22 +356,26 @@ export default function App() {
           />
         ) : (
           <ChatView
-            key={selectedDocument.id}
+            key={selectedDocument?.id ?? 'archived'}
+            readOnly={!selectedDocument}
             messages={messages}
             isStreaming={isStreaming}
             onSend={handleSend}
             onStop={stop}
-            documents={[selectedDocument]}
+            documents={selectedDocument ? [selectedDocument] : []}
             onOpenSource={handleOpenSource}
             onFeedback={handleMessageFeedback}
             onFollowup={handleFollowup}
             mode={mode}
           />
         )}
-      </main>
-
-      {docsOpen && (
+        </div>
+        {page === 'history' && <HistoryPage conversations={conversations} activeId={conversationId}
+          onOpen={openConversation} onDelete={deleteConversation} />}
+        <div className="route-documents" hidden={page !== 'documents'}>
         <DocumentsPanel
+          asPage
+          onSelect={(id) => { handleDocumentChange(id); handleModeChange('rag'); navigate('chat') }}
           uploadInputRef={documentUploadRef}
           documents={documents}
           categories={categories}
@@ -394,18 +383,18 @@ export default function App() {
           onDeleted={refreshDocs}
           onOpenSource={handleOpenSource}
           onInspect={(id) => setInspection({ id })}
-          onCompare={() => { handleModeChange('compare'); if (!isWide) setDocsOpen(false) }}
-          onClose={() => setDocsOpen(false)}
+          onCompare={() => { handleModeChange('compare'); navigate('chat') }}
+          onClose={() => navigate('chat')}
         />
-      )}
+        </div>
+      </main>
 
       {/* Backdrop for mobile drawers (sidebar / docs). */}
-      {(sidebarOpen || docsOpen) && (
+      {sidebarOpen && (
         <div
           className="drawer-backdrop"
           onClick={() => {
             setSidebarOpen(false)
-            setDocsOpen(false)
           }}
         />
       )}

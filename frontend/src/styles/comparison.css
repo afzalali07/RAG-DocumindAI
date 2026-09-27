@@ -35,7 +35,14 @@
 .compare-submit { background: #7357ec; color: white; padding: 10px 18px; }
 .compare-view button:disabled { opacity: .5; cursor: not-allowed; }
 .compare-results { max-width: 100%; padding: 0; }
-.docs-compare { margin-bottom: 14px; width: 100%; }
+.docs-compare {
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 14px;
+  padding: 10px 18px;
+  border-radius: 999px;
+}
 .doc-inspect { color: var(--accent); background: none; border: 0; padding: 6px 0 0; font-size: 12px; cursor: pointer; }
 .extraction-dialog { width: min(1000px, 94vw); max-height: 90vh; padding: 24px; border-radius: 18px; border: 1px solid var(--border); color: var(--text); background: var(--bg-elev); }
 .extraction-dialog::backdrop { background: rgb(0 0 0 / 45%); }
