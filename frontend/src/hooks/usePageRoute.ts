@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
-export type Page = 'chat' | 'documents' | 'history'
-const pages: Page[] = ['chat', 'documents', 'history']
+export type Page = 'chat' | 'documents' | 'history' | 'table-extraction'
+const pages: Page[] = ['chat', 'documents', 'history', 'table-extraction']
 function readPage(): Page {
   const value = window.location.hash.slice(2) as Page
   return pages.includes(value) ? value : 'chat'

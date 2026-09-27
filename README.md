@@ -560,6 +560,8 @@ Use the left navigation (the menu button on mobile) to switch between:
 - `/#/chat`: RAG Chat, AI Agent, Vector Search and document comparison.
 - `/#/documents`: upload, preview, download, inspect and delete documents. Use
   **Chat about this document** to select a ready file and open Chat.
+- `/#/table-extraction`: choose a ready uploaded document and click **Extract tables**.
+  Tables appear on the page with page, section or worksheet references.
 - `/#/history`: search saved conversations, reopen them or delete them.
 
 Browser Back/Forward and refresh retain the page route. Hash routing works with

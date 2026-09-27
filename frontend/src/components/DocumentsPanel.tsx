@@ -15,7 +15,6 @@ interface Props {
   onUploaded: () => void
   onDeleted: () => void
   onOpenSource: (source: Source) => void
-  onInspect: (id: string) => void
   onCompare: () => void
   onClose: () => void
 }
@@ -39,7 +38,6 @@ export function DocumentsPanel({
   onUploaded,
   onDeleted,
   onOpenSource,
-  onInspect,
   onCompare,
   onClose,
 }: Props) {
@@ -245,9 +243,7 @@ export function DocumentsPanel({
                   <span>{d.page_count} {fileExt(d.filename) === 'PDF' ? (lang === 'en' ? 'pages' : 'страниц') : fileExt(d.filename) === 'XLSX' ? (lang === 'en' ? 'sheets' : 'листов') : (lang === 'en' ? 'sections' : 'разделов')} · {d.chunk_count} {lang === 'en' ? 'chunks' : 'фрагментов'}</span>
                 )}
               </div>
-              {d.status === 'ready' && <button className="doc-inspect" onClick={() => onInspect(d.id)}>
-                {lang === 'en' ? 'Tables & pages' : 'Таблицы и страницы'}
-              </button>}
+
               {d.status === 'ready' && onSelect && <button className="btn btn-ghost doc-chat" onClick={() => onSelect(d.id)}>
                 {lang === 'en' ? 'Chat about this document' : 'Обсудить документ'}
               </button>}

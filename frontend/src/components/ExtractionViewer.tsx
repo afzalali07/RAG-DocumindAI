@@ -4,13 +4,14 @@ import { useI18n } from '../lib/i18n'
 import type { DocumentExtraction, Source } from '../lib/types'
 
 interface Props {
+  embedded?: boolean
   documentId: string
   initialPage?: number
   onClose: () => void
   onOpenSource: (source: Source) => void
 }
 
-export function ExtractionViewer({ documentId, initialPage = 1, onClose, onOpenSource }: Props) {
+export function ExtractionViewer({ documentId, initialPage = 1, onClose, onOpenSource, embedded = false }: Props) {
   const { lang } = useI18n()
   const en = lang === 'en'
   const [data, setData] = useState<DocumentExtraction | null>(null)
@@ -20,16 +21,18 @@ export function ExtractionViewer({ documentId, initialPage = 1, onClose, onOpenS
   const dialog = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
+    if (embedded) return
     const el = dialog.current
     el?.showModal()
     return () => el?.close()
-  }, [])
+  }, [embedded])
 
   useEffect(() => {
     const controller = new AbortController()
     setData(null)
     setError('')
     api.documentExtraction(documentId, controller.signal).then((result) => {
+      if (controller.signal.aborted) return
       setData(result)
       setPageIndex(Math.max(0, result.pages.findIndex((page) => page.page === initialPage)))
     }).catch((err: unknown) => {
@@ -42,14 +45,15 @@ export function ExtractionViewer({ documentId, initialPage = 1, onClose, onOpenS
   const unit = data?.location_kind === 'sheet' ? (en ? 'Sheet' : 'Лист')
     : data?.location_kind === 'section' ? (en ? 'Section' : 'Раздел') : (en ? 'Page' : 'Страница')
 
-  return (
-    <dialog ref={dialog} className="extraction-dialog" onCancel={onClose} aria-labelledby="extraction-title">
+  const content = (
+    <>
       <header className="extraction-head">
-        <div><h2 id="extraction-title">{en ? 'Tables & pages' : 'Таблицы и страницы'}</h2><p>{data?.filename}</p></div>
-        <button className="btn btn-ghost" onClick={onClose} aria-label={en ? 'Close' : 'Закрыть'} autoFocus>✕</button>
+        <div><h2 id="extraction-title">{en ? (embedded ? 'Extracted tables' : 'Tables & pages') : 'Таблицы и страницы'}</h2><p>{data?.filename}</p></div>
+        {!embedded && <button className="btn btn-ghost" onClick={onClose} aria-label={en ? 'Close' : 'Закрыть'} autoFocus>✕</button>}
       </header>
       {error && <p className="docs-error" role="alert">{error}</p>}
       {!data && !error && <p role="status">{en ? 'Extracting document…' : 'Извлечение документа…'}</p>}
+      {data && !page && <p role="status">{en ? 'No extractable pages or tables were found in this document.' : 'В документе не найдено страниц или таблиц для извлечения.'}</p>}
       {data && page && <>
         <p className="extraction-note">
           {data.page_count} {unit.toLowerCase()}{en ? '(s)' : ''} · {data.table_count} {en ? 'table(s)' : 'таблиц'}
@@ -66,7 +70,7 @@ export function ExtractionViewer({ documentId, initialPage = 1, onClose, onOpenS
           </select></label>
           <button className="btn btn-ghost" aria-label={en ? 'Next location' : 'Следующая страница'} disabled={pageIndex === data.pages.length - 1} onClick={() => setPageIndex(pageIndex + 1)}>→</button>
           <button className="btn btn-ghost" onClick={() => {
-            onClose()
+            if (!embedded) onClose()
             onOpenSource({ document_id: data.document_id, filename: data.filename, page: page.page,
               label: page.label, location_kind: data.location_kind, snippet: '', score: null, chunk_index: null })
           }}>{en ? 'Open original' : 'Открыть оригинал'}</button>
@@ -87,6 +91,8 @@ export function ExtractionViewer({ documentId, initialPage = 1, onClose, onOpenS
           </>}
         </div>
       </>}
-    </dialog>
+    </>
   )
+  return embedded ? <section className="extraction-inline" aria-label="Extracted tables">{content}</section>
+    : <dialog ref={dialog} className="extraction-dialog" onCancel={onClose} aria-labelledby="extraction-title">{content}</dialog>
 }
