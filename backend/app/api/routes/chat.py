@@ -10,6 +10,7 @@ Event protocol (each `data:` payload is JSON):
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -20,6 +21,8 @@ from sqlalchemy.orm import Session
 
 from app.core import agent as agent_loop
 from app.core import rag
+from app.core import spreadsheet
+from app.config import get_settings
 from app.db.models import Conversation, Message, Document
 from app.core.comparison import prepare_comparison
 from app.parsers.base import ParseError
@@ -96,6 +99,37 @@ async def chat(
 
     provider = get_provider(req.model)
     conv_id = conv.id
+
+    if mode in ("rag", "agent") and req.document_ids and len(req.document_ids) == 1:
+        document = db.get(Document, req.document_ids[0])
+        if Path(document.filename).suffix.lower() == ".xlsx":
+            document_id, filename = document.id, document.filename
+            async def gen_spreadsheet():
+                sources, steps = [], []
+                answer = ""
+                try:
+                    answer, sheet, plan = await spreadsheet.answer(
+                        get_settings().upload_dir / f"{document_id}.xlsx", req.message, history, provider,
+                    )
+                    if sheet:
+                        sources = [{"document_id": document_id, "filename": filename,
+                            "page": sheet['page'], "label": sheet['name'], "location_kind": "sheet",
+                            "snippet": answer[:600], "score": None, "chunk_index": None}]
+                    if mode == "agent":
+                        steps = [{"index": 1, "type": "tool", "name": "analyze_spreadsheet",
+                            "args": plan, "ok": True, "detail": "Validated plan executed against worksheet cells."}]
+                        yield _sse("agent_step", steps[0])
+                except ValueError as exc:
+                    answer = str(exc)
+                except Exception as exc:
+                    yield _sse("error", {"message": f"Spreadsheet analysis failed: {exc}"})
+                yield _sse("sources", {"conversation_id": conv_id, "sources": sources})
+                if answer:
+                    yield _sse("token", {"delta": answer})
+                message_id = _persist_assistant(conv_id, answer, sources, steps or None)
+                yield _sse("done", {"message_id": message_id, "conversation_id": conv_id})
+            return StreamingResponse(gen_spreadsheet(), media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
     if mode == "agent":
         # Own DB session for the stream — request-scoped `db` closes when the

@@ -7,7 +7,7 @@ import uuid
 from app.config import get_settings
 from app.parsers.base import PageSegment, parse_document
 
-VERSION = 2
+VERSION = 3
 
 
 def location_kind(filename: str) -> str:

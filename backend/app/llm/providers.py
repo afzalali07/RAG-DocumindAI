@@ -37,7 +37,17 @@ class OllamaProvider:
         except httpx.RequestError as exc:
             raise RuntimeError("Cannot connect to Ollama. Start Ollama and retry.") from exc
 
-    async def _stream(self, system: str, messages: list[ChatMessage]) -> AsyncIterator[str]:
+    async def stream_json(self, system: str, messages: list[ChatMessage], schema: dict) -> AsyncIterator[str]:
+        """Constrain calculation planning without changing normal chat generation."""
+        try:
+            async for token in self._stream(system, messages, schema):
+                yield token
+        except httpx.TimeoutException as exc:
+            raise RuntimeError("Ollama timed out while planning spreadsheet analysis. Please retry.") from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError("Cannot connect to Ollama. Start Ollama and retry.") from exc
+
+    async def _stream(self, system: str, messages: list[ChatMessage], schema: dict | None = None) -> AsyncIterator[str]:
         import json
 
         payload = {
@@ -46,6 +56,9 @@ class OllamaProvider:
             "messages": [{"role": "system", "content": system}]
             + [{"role": m.role, "content": m.content} for m in messages],
         }
+        if schema is not None:
+            payload["format"] = schema
+            payload["options"] = {"temperature": 0}
         # Earlier installs used the equivalent default 8B tag.
         if self.model == "llama3.1:8b":
             async with httpx.AsyncClient(timeout=10) as client:
@@ -58,7 +71,7 @@ class OllamaProvider:
                 except httpx.RequestError as exc:
                     raise RuntimeError("Cannot connect to Ollama. Start Ollama and retry.") from exc
         if settings.ollama_num_gpu is not None:
-            payload["options"] = {"num_gpu": settings.ollama_num_gpu}
+            payload.setdefault("options", {})["num_gpu"] = settings.ollama_num_gpu
         # Локальный Ollama медленный, но живой: длинный read-таймаут вместо None.
         timeout = httpx.Timeout(connect=10.0, read=600.0, write=60.0, pool=10.0)
         async with httpx.AsyncClient(timeout=timeout) as client:

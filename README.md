@@ -519,3 +519,36 @@ push.
   flash. The parameters apply once, get saved and are then removed from the
   URL — the in-app switchers take over. Handy for sharing a pre-configured
   link.
+
+## Structured Excel analysis
+
+When one `.xlsx` document is selected in RAG Chat or AI Agent, Llama translates
+questions into a validated calculation plan. Python executes the plan against
+worksheet cells, rather than asking the model to calculate from retrieved
+snippets. Responses show the sheet, exact column, numeric coverage and cell
+references; maximum/minimum and top/bottom results include ties.
+
+Supported questions include workbook/column overviews, row lookups, numeric
+filters, counts, sums, averages, minima/maxima, rankings, distinct values and
+grouped aggregates. For example:
+
+- Who has the highest CO5 (100)?
+- What is the average CO5 (100)?
+- How many students have CO5 (100) greater than or equal to 80?
+- Show the marks for LOGANAYAGI V.
+
+The first nonempty row is treated as the header. Specify the sheet when a file
+has several sheets and use exact column names, including numbers in parentheses.
+Ambiguous or unsupported plans request clarification. Formula results must be
+saved by Excel/WPS; the server does not evaluate formulas. Files exceeding 10,000
+rows per sheet, 200 columns or 300,000 cells are refused instead of reporting
+partial aggregates. Displayed results are capped at 50 rows/groups.
+
+This is a bounded analysis feature, not support for every possible spreadsheet
+question: custom formulas, OR filters, cross-sheet joins, multi-step statistical
+analysis and complex merged/multirow headers are not supported. Natural-language
+planning can still misinterpret a request; check the reported column and scope.
+Vector Search and two-document comparison remain retrieval-based.
+
+Restart the backend after updating. Existing uploaded XLSX files work immediately
+for structured analysis; reindex them to refresh the header-labelled search text.

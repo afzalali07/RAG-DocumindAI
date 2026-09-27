@@ -37,7 +37,19 @@ def parse(path: Path) -> list[PageSegment]:
                 warnings = []
                 if truncated:
                     warnings.append("Extraction limited to the first 2,000 rows and 100 columns.")
-                segments.append(PageSegment(number, tables[0].as_text() if tables else "", sheet.title, tables, warnings))
+                text = ""
+                if tables:
+                    from openpyxl.utils import get_column_letter
+                    header_row = next((i for i,row in enumerate(rows) if any(row)), 0)
+                    headers = rows[header_row]
+                    lines = [sheet.title, " | ".join(headers)]
+                    for row_index, row in enumerate(rows[header_row+1:], header_row+2):
+                        if any(row):
+                            lines.append(f"Row {row_index}: " + "; ".join(
+                                f"{headers[col] or 'Unnamed column'} [{get_column_letter(col+1)}{row_index}]: {value or '(blank)'}"
+                                for col,value in enumerate(row)))
+                    text = "\n".join(lines)
+                segments.append(PageSegment(number, text, sheet.title, tables, warnings))
         finally:
             wb.close()
     except Exception as exc:
