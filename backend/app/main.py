@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import chat, conversations, documents, models, search
+from app.api.routes import chat, conversations, documents, models, search, charts
 from app.config import get_settings
 from app.db.session import init_db
 
@@ -37,6 +37,7 @@ app.include_router(conversations.router)
 app.include_router(conversations.feedback_router)
 app.include_router(models.router)
 app.include_router(search.router)
+app.include_router(charts.router)
 
 
 @app.get("/api/health")

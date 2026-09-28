@@ -568,3 +568,38 @@ Browser Back/Forward and refresh retain the page route. Hash routing works with
 existing static hosting without extra server rewrite rules. Switching pages
 keeps the current chat, draft and upload component mounted. A full browser reload
 starts a fresh chat view; saved conversations can be reopened from History.
+
+## Report Generation
+
+Open **Report Generation** in the left navigation (`/#/reports`). Choose a document
+and either **Table Extraction** or **Saved chat / analysis answers**. For saved
+answers, select a conversation and check which answers to include. Comparison
+conversations include references to all of their documents.
+
+Enter a title, click **Generate report**, then review the preview. Download Markdown
+or use **Print / Save as PDF** and choose Save as PDF in the browser print dialog.
+Reports compile the existing findings without inventing new conclusions or
+independently verifying saved answers. Unsaved vector-search results are not included.
+The preview is temporary; download it before leaving the page.
+
+## Spreadsheet feature analysis
+
+Open **Spreadsheet feature analysis** (`/#/spreadsheet-analysis`), select a ready
+XLSX workbook, choose Bar, Pie or Line, enter a question and click **Generate
+visualization**. For example: `Show total Emissions by Factory` or `Show average
+CO5 (100) by Student's Name`. Include a sheet name for multi-sheet workbooks.
+
+Llama creates a validated chart plan; Python calculates the points from worksheet
+cells. The page displays exact columns, filters, aggregation, skipped rows and
+source row numbers alongside a data table. Hover over chart points for values.
+Grouped counts, sums, averages, minima/maxima, AND filters and numeric rankings
+are supported. Charts support one numeric series and at most 50 points; larger
+results request grouping or an explicit limit. Lines follow worksheet order unless
+numeric-value sorting is requested. Pie charts require nonnegative values with a
+positive total and show proportions of the displayed subset.
+
+The first nonempty row is the header. Cross-sheet joins, arbitrary formulas and
+date sorting are not supported. Formula cells need saved calculated values.
+Restart the backend after installing this update; Ollama must be running for
+query planning. Chart results are temporary and are not included in saved chat
+reports.

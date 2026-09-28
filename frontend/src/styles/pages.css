@@ -55,3 +55,23 @@
 .table-extraction-actions button:disabled { opacity: .5; cursor: not-allowed; }
 .extraction-inline { min-width: 0; border-top: 1px solid var(--border); padding-top: 24px; }
 @media (max-width: 600px) { .table-extraction-page { padding: 16px; } }
+.reports-page { flex: 1; min-height: 0; overflow: auto; padding: 24px; }
+.report-controls { display: flex; flex-direction: column; gap: 16px; max-width: 850px; }
+.report-controls > label { display: flex; flex-direction: column; gap: 8px; }
+.report-controls input:not([type=checkbox]), .report-controls select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-elev); color: var(--text); }
+.report-controls > button { align-self: flex-start; }
+.report-controls fieldset { border: 1px solid var(--border); border-radius: 12px; max-height: 300px; overflow: auto; }
+.report-answer { display: flex; align-items: baseline; gap: 12px; padding: 10px 0; overflow-wrap: anywhere; }
+.report-answer input { flex-shrink: 0; }
+.report-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+.report-preview { padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elev); overflow-x: auto; overflow-wrap: anywhere; }
+.report-preview table { border-collapse: collapse; }
+.report-preview td, .report-preview th { border: 1px solid var(--border); padding: 8px; }
+.report-preview pre { white-space: pre-wrap; }
+.report-controls button:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 600px) { .reports-page, .report-preview { padding: 16px; } }
+.report-controls textarea { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev); color: var(--text); resize: vertical; }
+.chart-results { margin-top: 24px; }
+.chart-results svg { display: block; width: 100%; max-width: 1000px; min-width: 480px; }
+.chart-results { overflow-x: auto; }
+.page-nav { min-height: 0; overflow-y: auto; }

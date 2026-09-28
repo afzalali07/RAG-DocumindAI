@@ -18,6 +18,8 @@ export function Sidebar({ open, onClose, onNew, theme, onToggleTheme, page }: Pr
     { page: 'chat', label: lang === 'en' ? 'Chat' : 'Чат', icon: <IconChat /> },
     { page: 'documents', label: lang === 'en' ? 'Documents & uploads' : 'Документы и загрузка', icon: <IconDoc /> },
     { page: 'table-extraction', label: lang === 'en' ? 'Table Extraction' : 'Извлечение таблиц', icon: <IconDoc /> },
+    { page: 'spreadsheet-analysis', label: 'Spreadsheet feature analysis', icon: <IconDoc /> },
+    { page: 'reports', label: 'Report Generation', icon: <IconDoc /> },
     { page: 'history', label: lang === 'en' ? 'Chat history' : 'История чатов', icon: <IconChat /> },
   ]
   return <aside className={`sidebar ${open ? 'open' : ''} ${swipe.swiping ? 'swiping' : ''}`} style={swipe.style} {...swipe.handlers}>

@@ -8,6 +8,8 @@ import './styles/search.css'
 import './styles/provider-error.css'
 import { usePageRoute } from './hooks/usePageRoute'
 import { TableExtractionPage } from './components/TableExtractionPage'
+import { SpreadsheetAnalysisPage } from './components/SpreadsheetAnalysisPage'
+import { ReportsPage } from './components/ReportsPage'
 import { HistoryPage } from './components/HistoryPage'
 import { IconMenu } from './lib/icons'
 import './styles/pages.css'
@@ -305,7 +307,7 @@ export default function App() {
       <main className="main">
         {page !== 'chat' && <header className="page-header">
           <button className="menu-btn" onClick={() => setSidebarOpen(true)} aria-label={lang === 'en' ? 'Open navigation' : 'Открыть меню'}><IconMenu /></button>
-          <h1>{page === 'table-extraction' ? 'Table Extraction' : page === 'documents' ? (lang === 'en' ? 'Documents & uploads' : 'Документы и загрузка') : (lang === 'en' ? 'Chat history' : 'История чатов')}</h1>
+          <h1>{page === 'spreadsheet-analysis' ? 'Spreadsheet feature analysis' : page === 'reports' ? 'Report Generation' : page === 'table-extraction' ? 'Table Extraction' : page === 'documents' ? (lang === 'en' ? 'Documents & uploads' : 'Документы и загрузка') : (lang === 'en' ? 'Chat history' : 'История чатов')}</h1>
         </header>}
         <div className="route-chat" hidden={page !== 'chat'}>
         <TopBar
@@ -373,6 +375,8 @@ export default function App() {
         </div>
         {page === 'history' && <HistoryPage conversations={conversations} activeId={conversationId}
           onOpen={openConversation} onDelete={deleteConversation} />}
+        {page === 'spreadsheet-analysis' && <SpreadsheetAnalysisPage documents={documents} />}
+        {page === 'reports' && <ReportsPage documents={documents} conversations={conversations} />}
         {page === 'table-extraction' && <TableExtractionPage documents={documents}
           onManageDocuments={() => navigate('documents')} onOpenSource={setViewerSource} />}
         <div className="route-documents" hidden={page !== 'documents'}>
