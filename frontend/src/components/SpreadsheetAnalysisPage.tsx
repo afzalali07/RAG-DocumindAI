@@ -10,6 +10,22 @@ interface Result {
   points: { label: string; value: number; rows: number[] }[]
 }
 const colors = ['#7057df', '#2196cf', '#d96b21', '#229568', '#c64a89', '#9a7b20']
+function AnalysisLoading() {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const started = Date.now()
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return <div className="analysis-loading">
+    <span className="analysis-spinner" aria-hidden="true" />
+    <div>
+      <strong role="status">Model is evaluating your question…</strong>
+      <p>Analyzing the workbook to calculate values and prepare your visualization.</p>
+      <small aria-live="off">{elapsed}s elapsed{elapsed >= 20 ? ' · Still working. Complex queries can take a little longer.' : ''}</small>
+    </div>
+  </div>
+}
 function Chart({ result }: { result: Result }) {
   const { points, chart_type: kind } = result
   const low = Math.min(0, ...points.map(p => p.value)), high = Math.max(0, ...points.map(p => p.value))
@@ -67,7 +83,7 @@ export function SpreadsheetAnalysisPage({ documents }: { documents: DocumentItem
       <label>Your question<textarea rows={3} maxLength={2000} value={query} onChange={e => {clear();setQuery(e.target.value)}} placeholder="For example: Show average CO5 (100) by student name, or total emissions by factory." /></label>
       <button className="btn btn-ghost" disabled={!ready || !query.trim() || busy}>{busy ? 'Analyzing workbook…' : 'Generate visualization'}</button>
     </form>
-    {busy && <p role="status">Llama is planning the chart. Worksheet values will be calculated by the server.</p>}
+    {busy && <AnalysisLoading />}
     {error && <p className="docs-error" role="alert">{error}</p>}
     {result && ready && <section className="chart-results"><h2>{result.filename} — {result.sheet}</h2><p>{result.query}</p>
       <p>{result.aggregation} · {result.value_column} by {result.label_column} · {result.matched_rows} matching rows · {result.skipped_rows} blank/nonnumeric rows skipped.</p>

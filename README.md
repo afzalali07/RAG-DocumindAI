@@ -8,7 +8,6 @@ app_port: 7860
 pinned: false
 ---
 
-English | [Русский](README.ru.md)
 
 # 📚 AI RAG Chat — chat with your internal documents
 

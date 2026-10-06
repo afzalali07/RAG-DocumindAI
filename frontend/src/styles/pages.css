@@ -74,4 +74,10 @@
 .chart-results { margin-top: 24px; }
 .chart-results svg { display: block; width: 100%; max-width: 1000px; min-width: 480px; }
 .chart-results { overflow-x: auto; }
+.analysis-loading { display: flex; align-items: flex-start; gap: 16px; max-width: 850px; margin-top: 24px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elev); }
+.analysis-loading strong { color: var(--text); }
+.analysis-loading p { margin: 8px 0; color: var(--text-soft); }
+.analysis-loading small { color: var(--text-muted); }
+.analysis-spinner { flex-shrink: 0; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .analysis-spinner { animation: none; } }
 .page-nav { min-height: 0; overflow-y: auto; }
