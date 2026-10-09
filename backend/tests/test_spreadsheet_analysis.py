@@ -3,6 +3,60 @@ import json
 import pytest
 from openpyxl import Workbook
 from app.core.spreadsheet import read_workbook, execute, Plan, answer
+from app.llm.base import ChatMessage
+
+
+@pytest.fixture
+def emissions(tmp_path):
+    w = Workbook()
+    s = w.active
+    s.title = 'Emission Data'
+    s.append(['Factory', 'CO2 (t)', 'Emission Status'])
+    for row in [('A', 10, 'High'), ('B', 20, 'Low'), ('C', 30, 'High')]:
+        s.append(row)
+    w.create_sheet('Summary').append(['Metric', 'Value'])
+    path = tmp_path / 'emissions.xlsx'
+    w.save(path)
+    return path
+
+
+class NoPlanner:
+    async def stream(self, *args):
+        raise AssertionError('An explicit categorical count should not require the model')
+        yield ''
+
+
+def test_emission_count_with_explicit_sheet(emissions):
+    text, sheet, plan = asyncio.run(answer(
+        emissions, 'What is the count of High in the Emission status in the Emission data ?',
+        [], NoPlanner()))
+    assert 'Row count: **2**' in text
+    assert sheet['name'] == 'Emission Data'
+    assert plan['filters'] == [{'column': 'Emission Status', 'operator': 'eq', 'value': 'High'}]
+    assert plan['column'] == ''
+
+
+def test_emission_sheet_followup_preserves_count(emissions):
+    history = [
+        ChatMessage(role='user', content='What is the count of High in the Emission status?'),
+        ChatMessage(role='assistant', content='Please select a sheet: Emission Data, Summary'),
+        ChatMessage(role='user', content='Emission Data'),
+    ]
+    text, _, _ = asyncio.run(answer(emissions, 'Emission Data', history, NoPlanner()))
+    assert 'Row count: **2**' in text
+
+
+def test_categorical_count_does_not_discard_extra_condition(emissions):
+    from app.core.spreadsheet import direct_plan
+    assert direct_plan(read_workbook(emissions),
+                       'Count High in Emission Status in Emission Data where Factory is A') is None
+
+
+def test_count_ambiguous_columns_still_requires_selection():
+    from app.core.spreadsheet import direct_plan
+    sheets = [{'name': name, 'headers': ['Status'], 'rows': [(2, ['High'])], 'missing': set()}
+              for name in ('One', 'Two')]
+    assert direct_plan(sheets, 'Count High in Status') is None
 
 @pytest.fixture
 def workbook(tmp_path):
